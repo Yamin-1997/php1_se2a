@@ -16,6 +16,7 @@ if (empty($product_no)) {
 $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
 $category = $_GET['category'] ?? '';
 
+
 try {
 
   $db = new PDO($dsn, DB_USER, DB_PASS);

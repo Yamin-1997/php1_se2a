@@ -4,13 +4,13 @@
 require_once __DIR__ . "/def.php";
 require_once __DIR__ . "/utils.php";
 //kadai08_1からのGETデータを取得
-$product_no = filter_input(INPUT_GET, "product_no");
+$product_no = filter_input(INPUT_GET, "product_no", FILTER_VALIDATE_INT);
 
-//product_noがなければ、kadai08_1に戻って、処理終了
-if ($_SERVER["REQUEST_METHOD"] !== "POST") {
+if (!$product_no) {
   header("Location: kadai08_1.php");
   exit;
 }
+//product_noがなければ、kadai08_1に戻って、処理終了
 
 ///other way to return to 8-1
 // if (empty($product_no)) {

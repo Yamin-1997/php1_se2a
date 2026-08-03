@@ -13,12 +13,11 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
 }
 
 //POSTデータ取得
-$postData["product_no"] = filter_input(INPUT_POST, "product_no");
-
-//DBから該当レコードを削除
-if (!empty($postData["product_no"])) {
-  $errMsg[] = "データを削除しました";
-}
+$postData["product_no"] = filter_input(
+  INPUT_POST,
+  "product_no",
+  FILTER_VALIDATE_INT
+);
 try {
 
   $dsn = "mysql:host=" . DB_HOST .
@@ -45,10 +44,19 @@ try {
   $db->commit();
 
 
+  if ($result) {
+    $msg = "データを削除しました。";
+  }
+
+
   $stmt = null;
   $db = null;
 } catch (PDOException $poe) {
-  $db->rollBack();
+
+  if (isset($db) && $db->inTransaction()) {
+    $db->rollBack();
+  }
+
   exit("DBエラー：" . $poe->getMessage());
 }
 
@@ -84,12 +92,8 @@ try {
           <!-- エラーメッセージ -->
           <div class="col">
             <p class="text-danger">
-              <?php if (!empty($errMsg)) : ?>
-                <?php foreach ($errMsg as $msg) : ?>
-                  <?= h($msg) ?><br>
-                <?php endforeach; ?>
-              <?php elseif (isset($result) && $result) : ?>
-                削除しました。
+              <?php if (!empty($msg)) : ?>
+                <?= h($msg) ?>
               <?php endif; ?>
             </p>
           </div><!-- .col -->

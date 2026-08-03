@@ -1,14 +1,105 @@
 <?php
+//必要ファイルがあれば、読み込むこと
 
 require_once __DIR__ . "/def.php";
 require_once __DIR__ . "/utils.php";
 
-//課題８ではoldProductから全件表示
+// Get search values from the form (GET method)
 
-//課題９でPRICEもしくはCATEGORYの条件を追加して検索
+$searchType = $_GET["searchType"] ?? "";
+$price = $_GET["price"] ?? "";
+$category = $_GET["category"] ?? "1";
+$pname = $_GET["pname"] ?? "";
+
+// Create database
+$dsn = "mysql:host=" . DB_HOST .
+  ";dbname=" . DB_NAME .
+  ";charset=" . DB_CHARSET;
+try {
+  // Connect to the database using PDO
+  $db = new PDO($dsn, DB_USER, DB_PASS);
+
+  // Set PDO exception mode
+  $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+
+  //課題８ではoldProductから全件表示 
+  //there is no use where clause, want all records from OLDPRODUCT
+  $sql = "SELECT
+            PRODUCT_NO AS product_no,
+            PNAME AS pname,
+            CATEGORY AS category,
+            PRICE AS price
+          FROM OLDPRODUCT";
+
+  // Store SQL parameters
+  $params = [];
+
+  //課題９でPRICEもしくはCATEGORYの条件を追加して検索
+  if ($searchType === "1") {
+
+    //ユーザーが価格を入力しなかった場合は、0円以上で検索する(ALL)
+    if ($price === "") {
+      $price = 0;
+    }
+
+    // Add price condition
+    $sql .= " WHERE PRICE >= :price";
+    $params[":price"] = $price;
+
+    // 課題９: カテゴリで商品を検索
+  } elseif ($searchType === "2") {
+
+    if ($category === "2") {
+
+      // Search Pizza category
+      $sql .= " WHERE CATEGORY = :category";
+      $params[":category"] = "ピザ";
+    } elseif ($category === "3") {
+
+      // Search Drink category
+      $sql .= " WHERE CATEGORY = :category";
+      $params[":category"] = "ドリンク";
+    }
+
+    // Kadai 10: Search products by product name
+  } elseif ($searchType === "3") {
+
+    // Escape special characters for LIKE search
+    $keyword = str_replace(
+      ["\\", "%", "_"],
+      ["\\\\", "\\%", "\\_"],
+      $pname
+    );
+
+    // Add product name condition
+    $sql .= " WHERE PNAME LIKE :pname ESCAPE '\\\\'";
+    $params[":pname"] = "%" . $keyword . "%";
+  }
+
+  // Prepare SQL statement
+  $stmt = $db->prepare($sql);
+
+  // Bind parameter values
+  foreach ($params as $key => $value) {
+    $stmt->bindValue($key, $value);
+  }
+
+  // Execute SQL
+  $stmt->execute();
+
+  // Get search result
+  $result = [];
+  while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+    $result[] = $row;
+  }
+} catch (PDOException $e) {
+
+  //:debug
+  exit("DBエラー：" . $e->getMessage());
+}
 
 ?>
-
 <!DOCTYPE html>
 <html lang="ja">
 
@@ -38,40 +129,60 @@ require_once __DIR__ . "/utils.php";
     </div>
     <div class="row border h-75">
       <div class="col-3 border">
-        <form action="kadai08_1.php" method="GET" class="mt-5 m-3">
+        <form action="kadai08_1_Challenging.php" method="GET" class="mt-5 m-3">
 
           <!-- 検索 -->
           <div class="form-check form-check-inline mb-3">
-            <input class="form-check-input" type="radio" name="searchType" id="searchRadio1" value="1" onclick="typeCheck();">
+            <!-- <input class="form-check-input" type="radio" name="searchType" id="searchRadio1" value="1" onclick="typeCheck();"> -->
+            <input class="form-check-input" type="radio" name="searchType" id="searchRadio1"
+              value="1" onclick="typeCheck();"
+              <?= ($searchType === "" || $searchType === "1") ? "checked" : "" ?>>
             <label class=" form-check-label" for="searchRadio1">価格検索</label>
           </div>
           <div class="form-check form-check-inline mb-3">
-            <input class="form-check-input" type="radio" name="searchType" id="searchRadio2" value="2" onclick="typeCheck();">
+            <!-- <input class="form-check-input" type="radio" name="searchType" id="searchRadio2" value="2" onclick="typeCheck();"> -->
+            <input class="form-check-input" type="radio" name="searchType" id="searchRadio2"
+              value="2" onclick="typeCheck();"
+              <?= ($searchType === "2") ? "checked" : "" ?>>
+
             <label class="form-check-label" for="searchRadio2">カテゴリ検索</label>
           </div>
           <div class="form-check form-check-inline mb-3">
-            <input class="form-check-input" type="radio" name="searchType" id="searchRadio3" value="3" onclick="typeCheck();">
+            <!-- <input class="form-check-input" type="radio" name="searchType" id="searchRadio3" value="3" onclick="typeCheck();"> -->
+            <input class="form-check-input" type="radio"
+              name="searchType"
+              id="searchRadio3"
+              value="3"
+              onclick="typeCheck();"
+              <?= ($searchType === "3") ? "checked" : "" ?>>
             <label class=" form-check-label" for="searchRadio3">商品名検索</label>
           </div>
 
           <div class="input-group mb-3">
             <span class="input-group-text">価格</span>
-            <input type="text" class="form-control" name="price" id="price" value="">
+            <!-- <input type="text" class="form-control" name="price" id="price" value=""> -->
+            <input type="text" class="form-control" name="price" id="price"
+              value="<?= htmlspecialchars($price, ENT_QUOTES, 'UTF-8') ?>">
             <span class="input-group-text">円以上</span>
           </div>
 
           <div class="input-group mb-3">
             <label class="input-group-text mb-3" for="category">カテゴリ</label>
             <select class="form-select mb-3" name="category" id="category">
-              <option value="1">全ての商品</option>
-              <option value="2">ピザ</option>
-              <option value="3">ドリンク</option>
+              <!-- <option value="1">全ての商品</option>
+              <option value="2">ピザ</option> -->
+              <!-- <option value="3">ドリンク</option> -->
+              <option value="1" <?= ($category === "1") ? "selected" : "" ?>>全ての商品</option>
+              <option value="2" <?= ($category === "2") ? "selected" : "" ?>>ピザ</option>
+              <option value="3" <?= ($category === "3") ? "selected" : "" ?>>ドリンク</option>
             </select>
           </div>
 
           <div class="input-group mb-3">
             <span class="input-group-text">商品名</span>
-            <input type="text" class="form-control" name="pname" id="pname" value="">
+            <!-- <input type="text" class="form-control" name="pname" id="pname" value=""> -->
+            <input type="text" class="form-control" name="pname" id="pname"
+              value="<?= htmlspecialchars($pname, ENT_QUOTES, 'UTF-8') ?>">
             <span class="input-group-text">を含む</span>
           </div>
 
@@ -99,23 +210,32 @@ require_once __DIR__ . "/utils.php";
           </thead>
           <tbody>
 
-            <tr>
+            <!-- <tr>
               <td></td>
               <td></td>
               <td></td>
               <td></td>
-              <!-- TODO:「編集」「削除」各リンク先は課題10以降で追加。 -->
-              <td><a class="btn btn-primary" href="">編集</a></td>
+              TODO:「編集」「削除」各リンク先は課題10以降で追加。 -->
+            <!-- <td><a class="btn btn-primary" href="">編集</a></td>
               <td><a class="btn btn-secondary" href="">削除</a></td>
-            </tr>
+            </tr>  -->
 
+            <?php foreach ($result as $row) { ?>
+              <tr>
+                <td><?= htmlspecialchars($row["product_no"], ENT_QUOTES, 'UTF-8') ?></td>
+                <td><?= htmlspecialchars($row["pname"], ENT_QUOTES, 'UTF-8') ?></td>
+                <td><?= htmlspecialchars($row["category"], ENT_QUOTES, 'UTF-8') ?></td>
+                <td><?= htmlspecialchars($row["price"], ENT_QUOTES, 'UTF-8') ?></td>
+                <td><a class="btn btn-primary" href="">編集</a></td>
+                <td><a class="btn btn-secondary" href="">削除</a></td>
+              </tr>
+            <?php } ?>
           </tbody>
         </table>
 
       </div><!-- .col-9 border -->
     </div><!-- .row border h-75 -->
   </div><!-- .container-field -->
-
   <script>
     /* 本来は別ファイルに分けた方が良い */
     window.onload = (event) => {
@@ -150,7 +270,7 @@ require_once __DIR__ . "/utils.php";
       } else if (chk == 3) {
         pnameBox.disabled = false;
         priceBox.disabled = true;
-        priceBox.value = "";
+        // priceBox.value = "";
         categoryBox.disabled = true;
         categoryBox.value = 1;
       }
@@ -159,4 +279,4 @@ require_once __DIR__ . "/utils.php";
 
 </body>
 
-</html>
+</html>s
